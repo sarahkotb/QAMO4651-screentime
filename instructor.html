@@ -123,6 +123,7 @@
       <span class="mathy">μ</span> — because <span class="mathy">Var[Ȳ] = σ²⁄n → 0</span>. We run a round of samples for
       each n (same x-axis), then check <span class="mathy">SD[Ȳ]</span> against <span class="mathy">σ⁄√n</span>.</p>
     <div class="row">
+      <div style="flex:1; min-width:240px"><label for="llnSizes">Sample sizes n (comma-separated)</label><input type="text" id="llnSizes" value="5, 10, 15, 20, 25" style="width:100%"></div>
       <div><label for="llnReps">Samples per round</label><input type="number" id="llnReps" min="1" value="1000"></div>
       <div><label>&nbsp;</label><button class="btn" id="llnBtn">📉 Run LLN</button></div>
     </div>
@@ -266,6 +267,7 @@ $("nSingle").value = cfg?.defaultSampleSize ?? 10;
 $("nSamp").value   = cfg?.defaultSampleSize ?? 10;
 $("reps").value    = cfg?.defaultRepetitions ?? 1000;
 $("llnReps").value = cfg?.defaultRepetitions ?? 1000;
+$("llnSizes").value = (cfg?.lnnSampleSizes ?? [5,10,15,20,25]).join(", ");
 
 const todayStr = () => { const d=new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
@@ -396,7 +398,8 @@ let llnResults = null;
 function runLLN(){
   if (population.length===0){ alert("No submissions yet."); return; }
   const reps = Math.max(1, Math.round(Number($("llnReps").value)||1000));
-  const ns = cfg.lnnSampleSizes;
+  const ns = $("llnSizes").value.split(/[\s,]+/).map(s=>parseInt(s,10)).filter(n=>Number.isFinite(n)&&n>0);
+  if (ns.length===0){ alert("Enter at least one sample size, e.g. 5, 10, 15, 20, 25"); return; }
   const xMin = Math.min(...population), xMax = Math.max(...population);
   const container = $("llnCharts"); container.innerHTML = "";
   const rows = [];

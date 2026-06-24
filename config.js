@@ -21,6 +21,6 @@ window.APP_CONFIG = {
   // -------- Demo defaults (safe to leave as-is) -----------------
   defaultSampleSize: 10,    // n for "draw a sample" + sampling distribution
   defaultRepetitions: 1000, // how many samples to build the sampling distribution
-  lnnSampleSizes: [5, 10, 30, 100, 300], // sample sizes for the Law of Large Numbers panel
+  lnnSampleSizes: [5, 10, 15, 20, 25], // sample sizes for the Law of Large Numbers panel
   maxMinutes: 1440          // reject impossible screen-time entries (minutes in a day)
 };
