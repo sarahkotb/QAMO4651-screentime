@@ -96,16 +96,25 @@ and validate that section is `001`/`002` and minutes are `0–1440`.
 
 1. Open `instructor.html` on the projector. Pick the **Section** (001 or 002).
    (Class day defaults to today, so each class starts fresh automatically.)
-2. Show the QR (slide 6). Watch **N** climb as students submit — **Step 1** shows
+2. Click **🟢 Open form for section 0XX**. This turns the student page on for that
+   section — students don't choose a section, you set it here. The status pill shows
+   **🟢 OPEN**. (Before you open it, students who scan the QR see “this page is only
+   live during class.”)
+3. Show the QR (slide 6). Watch **N** climb as students submit — **Step 1** shows
    the population histogram with μ, σ², σ.
-3. **Step 2** — click **Draw a sample** a few times; point out Ȳ₁, Ȳ₂, Ȳ₃ change.
-4. **Step 3** — **Build sampling distribution**; compare the tiles:
+4. **Step 2** — click **Draw a sample** a few times; point out Ȳ₁, Ȳ₂, Ȳ₃ change.
+5. **Step 3** — **Build sampling distribution**; compare the tiles:
    E[Ȳ] ≈ μ and Var[Ȳ] ≈ σ²/n.
-5. **Step 4** — **Run LLN**; the histograms narrow around μ and SD[Ȳ] ≈ σ/√n.
-6. **Step 5** — **Run CLT**; the standardized Ȳ matches N(0,1) despite the skew.
-7. Click **⬇︎ Download Markdown** → upload the file to Canvas. It's labeled with
-   the section and date, e.g. `QAMO4651-001_screen-time_2026-09-02.md`, and
-   contains the raw submissions plus the numbers from every step.
+6. **Step 4** — **Run LLN**; the histograms narrow around μ and SD[Ȳ] ≈ σ/√n.
+   (Set the sample sizes in the **Sample sizes n** box, e.g. `5, 10, 15, 20, 25`.)
+7. **Step 5** — **Run CLT**; the standardized Ȳ matches N(0,1) despite the skew.
+8. At the bottom, click **⏹ Stop accepting submissions** to close the form for the day.
+9. Click **📄 Download PDF report** for a clean, self-explanatory handout to post on
+   Canvas (or **Raw data (.md)** for just the numbers). Run all five steps *before*
+   exporting — the report captures whatever is on screen.
+
+> **Two sections:** open for 001, run the demo and export, **Stop**, then switch the
+> Section dropdown to 002 and open again for the next class.
 
 ### Rehearsing before class
 On the instructor page, click **🧪 Load test data** to inject ~40 fake skewed
@@ -113,9 +122,9 @@ entries so you can practice the whole flow without students. Real submissions
 replace the test data as soon as they arrive.
 
 ### Tips
-- **Two sections (001/002):** students pick their section on the form; you pick
-  the matching section on the dashboard. Each is its own population. Download once
-  per section.
+- **The form is instructor-controlled.** It only accepts submissions while you've
+  clicked **Open**, and only for the section you opened. This stops stray entries
+  before/after class and keeps the two sections separate automatically.
 - **Reusing across days:** the dashboard defaults to *today*. To revisit an older
   class, change **Class day** or tick **all days**.
 - **Privacy:** only a number (minutes) and a section are stored — no names, no logins.

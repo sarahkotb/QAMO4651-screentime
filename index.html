@@ -16,30 +16,30 @@
 
 <div class="wrap" style="max-width:520px">
 
-  <div class="card" id="formCard">
+  <!-- Shown when the instructor hasn't opened the form (or has closed it) -->
+  <div class="card" id="closedCard" style="text-align:center">
+    <h2 style="justify-content:center">⏸ Not live right now</h2>
+    <p class="note" id="closedMsg">Connecting…</p>
+  </div>
+
+  <!-- The submission form (only while the instructor has it open) -->
+  <div class="card" id="formCard" style="display:none">
     <h2>Enter your screen time</h2>
-    <p class="note">Find <strong>yesterday's daily average screen time</strong> on your phone and enter it
+    <p class="note">Find <strong>yesterday's screen time</strong> on your phone and enter it
        <strong>in minutes</strong>.<br>
        iPhone: Settings &rarr; Screen Time. Android: Settings &rarr; Digital Wellbeing.</p>
+    <p class="pill" id="sectionBanner" style="margin:0 0 14px">Section &mdash;</p>
 
-    <div class="row" style="margin-bottom:16px">
-      <div>
-        <label for="section">Your section</label>
-        <select id="section">
-          <option value="001">001</option>
-          <option value="002">002</option>
-        </select>
-      </div>
-      <div style="flex:1">
-        <label for="minutes">Daily average (minutes)</label>
-        <input type="number" id="minutes" min="0" max="1440" step="1" placeholder="e.g. 287" style="width:100%">
-      </div>
+    <div style="margin-bottom:16px">
+      <label for="minutes">Screen time (minutes)</label>
+      <input type="number" id="minutes" min="0" max="1440" step="1" placeholder="e.g. 287" style="width:100%">
     </div>
 
     <button class="btn" id="submitBtn" style="width:100%; padding:13px">Submit my screen time</button>
     <p id="msg" class="note" style="margin-top:12px; min-height:1.2em"></p>
   </div>
 
+  <!-- Confirmation after a successful submission -->
   <div class="card" id="thanksCard" style="display:none; text-align:center">
     <h2 style="justify-content:center">✅ You're in!</h2>
     <p class="note">Your screen time has been added to the class population.</p>
@@ -53,38 +53,58 @@
 <script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, query, where, onSnapshot }
+import { getFirestore, collection, addDoc, serverTimestamp, query, where, onSnapshot, doc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const cfg = window.APP_CONFIG;
 const $ = id => document.getElementById(id);
+const show = el => el.style.display = "block";
+const hide = el => el.style.display = "none";
 
-// --- guard against an un-configured deploy ---
-if (!cfg || cfg.firebase.apiKey === "PASTE_ME") {
-  $("msg").textContent = "⚠️ This page isn't configured yet (config.js). Tell your instructor.";
-  $("submitBtn").disabled = true;
+if (!cfg || cfg.firebase.apiKey === "PASTE_ME"){
+  $("closedMsg").textContent = "⚠️ This page isn't configured yet (config.js). Tell your instructor.";
 }
 
 let db;
-try {
-  const app = initializeApp(cfg.firebase);
-  db = getFirestore(app);
-} catch (e) { /* config guard above already messaged */ }
+try { db = getFirestore(initializeApp(cfg.firebase)); } catch (e) {}
 
-const todayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-};
+let session = null;       // { open, section, day } from the instructor
+let hasSubmitted = false; // stays on the thank-you screen until they choose otherwise
+let countUnsub = null;
+
+function render(){
+  const open = !!(session && session.open === true);
+  if (!open){
+    hide($("formCard")); hide($("thanksCard")); show($("closedCard"));
+    $("closedMsg").textContent = session
+      ? "Sorry, this page is only live during class."
+      : "Connecting…";
+    return;
+  }
+  hide($("closedCard"));
+  $("sectionBanner").textContent = "Section " + session.section;
+  if (hasSubmitted){ hide($("formCard")); show($("thanksCard")); }
+  else { show($("formCard")); hide($("thanksCard")); }
+}
+
+// Watch the instructor's open/close switch in real time
+if (db){
+  onSnapshot(doc(db, "control", "session"), snap => {
+    session = snap.exists() ? snap.data() : { open: false };
+    render();
+  }, () => { session = { open:false }; render(); });
+}
 
 $("submitBtn").addEventListener("click", async () => {
-  const section = $("section").value;
   const minutes = Number($("minutes").value);
   const msg = $("msg");
-
-  if (!Number.isFinite(minutes) || $("minutes").value.trim() === "") {
+  if (!session || session.open !== true){
+    render(); return; // closed in the meantime
+  }
+  if (!Number.isFinite(minutes) || $("minutes").value.trim() === ""){
     msg.textContent = "Please enter a number of minutes."; return;
   }
-  if (minutes < 0 || minutes > cfg.maxMinutes) {
+  if (minutes < 0 || minutes > cfg.maxMinutes){
     msg.textContent = `Please enter minutes between 0 and ${cfg.maxMinutes}.`; return;
   }
 
@@ -92,36 +112,36 @@ $("submitBtn").addEventListener("click", async () => {
   msg.textContent = "Submitting…";
   try {
     await addDoc(collection(db, "submissions"), {
-      section,
+      section: session.section,
       minutes: Math.round(minutes),
-      day: todayStr(),
+      day: session.day,
       createdAt: serverTimestamp()
     });
-    showThanks(section);
+    hasSubmitted = true;
+    msg.textContent = "";
+    $("submitBtn").disabled = false;
+    startLiveCount();
+    render();
   } catch (e) {
-    msg.textContent = "Hmm, that didn't go through. Check your connection and try again.";
+    msg.textContent = "Hmm, that didn't go through. The form may have just closed — check the projector.";
     $("submitBtn").disabled = false;
   }
 });
 
-function showThanks(section){
-  $("formCard").style.display = "none";
-  $("thanksCard").style.display = "block";
-  // live count for this section + today
-  const q = query(collection(db, "submissions"), where("day","==",todayStr()));
-  onSnapshot(q, snap => {
+function startLiveCount(){
+  if (countUnsub) countUnsub();
+  const q = query(collection(db, "submissions"), where("day","==", session.day));
+  countUnsub = onSnapshot(q, snap => {
     let n = 0;
-    snap.forEach(d => { if (d.data().section === section) n++; });
-    $("liveCount").textContent = `${n} student${n===1?"":"s"} in section ${section} have submitted`;
+    snap.forEach(d => { if (d.data().section === session.section) n++; });
+    $("liveCount").textContent = `${n} student${n===1?"":"s"} in section ${session.section} have submitted`;
   });
 }
 
 $("againBtn").addEventListener("click", () => {
   $("minutes").value = "";
-  $("submitBtn").disabled = false;
-  $("msg").textContent = "";
-  $("thanksCard").style.display = "none";
-  $("formCard").style.display = "block";
+  hasSubmitted = false;
+  render();
 });
 </script>
 </body>

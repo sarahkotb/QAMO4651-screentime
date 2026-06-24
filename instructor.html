@@ -38,12 +38,32 @@
       </div>
       <div>
         <label>&nbsp;</label>
-        <button class="btn crimson" id="downloadBtn">⬇︎ Download Markdown</button>
+        <button class="btn crimson" id="pdfBtn">📄 Download PDF report</button>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn ghost" id="downloadBtn">Raw data (.md)</button>
       </div>
     </div>
     <p class="note" id="status" style="margin-top:14px">Connecting…</p>
-    <button class="btn ghost" id="testDataBtn" style="margin-top:6px">🧪 Load test data (rehearsal)</button>
-    <span class="note" style="margin-left:8px">— injects ~40 fake skewed entries so you can practice. Real submissions override it.</span>
+
+    <hr class="soft">
+    <div class="row" style="align-items:center">
+      <div>
+        <label>Student form</label>
+        <button class="btn" id="openBtn">🟢 Open form for section 001</button>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <span id="formStatus" class="pill">checking…</span>
+      </div>
+      <div style="flex:1"></div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn ghost" id="testDataBtn">🧪 Load test data (rehearsal)</button>
+      </div>
+    </div>
+    <p class="note" style="margin-top:8px">Opening uses the <strong>Section</strong> and <strong>Class day</strong> selected above. Students don't pick a section — it's set here.</p>
   </div>
 
   <!-- ===== Student link & QR (collapsible) ===== -->
@@ -152,12 +172,21 @@
     </div>
   </div>
 
+  <!-- ===== End of class: stop accepting submissions ===== -->
+  <div class="card" style="text-align:center">
+    <h2 style="justify-content:center">End of class</h2>
+    <p class="note">Close the student form. Anyone who opens the page afterward will see
+      “Sorry, this page is only live during class.”</p>
+    <div id="formStatusBottom" class="pill" style="margin-bottom:12px">checking…</div><br>
+    <button class="btn crimson" id="stopBtn">⏹ Stop accepting submissions</button>
+  </div>
+
 </div>
 
 <script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, query, where, onSnapshot }
+import { getFirestore, collection, query, where, onSnapshot, doc, setDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
 
@@ -324,6 +353,37 @@ function refreshPopulation(){
 ["section","day"].forEach(id => $(id).addEventListener("change", subscribe));
 $("allDays").addEventListener("change", () => { $("day").disabled = $("allDays").checked; subscribe(); });
 subscribe();
+
+/* ---------------- live class control: open/close the student form ---------------- */
+function updateOpenLabel(){ $("openBtn").textContent = `🟢 Open form for section ${$("section").value}`; }
+$("section").addEventListener("change", updateOpenLabel);
+updateOpenLabel();
+
+const controlDayValue = () => $("allDays").checked ? todayStr() : ($("day").value || todayStr());
+
+async function writeControl(open){
+  if (!ready){ alert("Not connected to Firebase yet."); return; }
+  try{
+    await setDoc(doc(db, "control", "session"),
+      { open, section: $("section").value, day: controlDayValue() });
+  }catch(e){ alert("Couldn't update the form status: " + e.message); }
+}
+$("openBtn").addEventListener("click", () => writeControl(true));
+$("stopBtn").addEventListener("click", () => writeControl(false));
+
+function setStatusPill(open, section, day){
+  const txt = open ? `🟢 OPEN — section ${section} · ${day}` : "🔴 closed";
+  ["formStatus","formStatusBottom"].forEach(id => {
+    const el = $(id); el.textContent = txt;
+    el.style.background = open ? "#d6f5e3" : "#fde2e2";
+    el.style.color      = open ? "#15703f" : "#b3261e";
+  });
+}
+if (ready){
+  onSnapshot(doc(db, "control", "session"),
+    snap => { const s = snap.exists() ? snap.data() : {open:false}; setStatusPill(s.open===true, s.section, s.day); },
+    ()   => setStatusPill(false));
+}
 
 // Rehearsal: synthesize a realistic right-skewed screen-time population (minutes)
 $("testDataBtn").addEventListener("click", ()=>{
@@ -566,6 +626,184 @@ $("downloadBtn").addEventListener("click", ()=>{
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+/* ====================================================================
+   DOWNLOAD PDF REPORT (a clean, self-explanatory student handout)
+   ==================================================================== */
+const f2 = x => isFinite(x) ? x.toLocaleString(undefined,{maximumFractionDigits:2}) : "—";
+
+function chartBlock(id){
+  const el = document.getElementById(id);
+  if (!el || el.children.length === 0) return "";
+  return `<div class="chartbox">${el.outerHTML}</div>`;
+}
+function llnChartBlock(){
+  const c = document.getElementById("llnCharts");
+  if (!c || c.children.length === 0) return "";
+  return `<div class="minigrid">${c.innerHTML}</div>`;
+}
+
+const REPORT_CSS = `
+*{box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;color:#1b1b2e;line-height:1.55;margin:0;padding:0 0 40px}
+.head{padding:34px 48px 18px;border-bottom:3px solid #2d2db4}
+h1{color:#2d2db4;margin:0 0 4px;font-size:26px}
+.subtitle{margin:0 0 8px;font-size:13.5px;color:#33334d}
+.meta{margin:0;font-size:12px;color:#6a6a85}
+section{padding:18px 48px;break-inside:avoid}
+.intro{padding-top:22px}
+h2{color:#1f1f8a;font-size:18px;border-bottom:1px solid #e3e4f0;padding-bottom:6px;margin:6px 0 12px;display:flex;align-items:center;gap:10px}
+h2 .num{background:#2d2db4;color:#fff;border-radius:50%;width:26px;height:26px;min-width:26px;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+p{margin:8px 0;font-size:13.5px}
+.m{font-style:italic;font-family:Georgia,"Times New Roman",serif}
+.formula{text-align:center;font-style:italic;font-family:Georgia,serif;font-size:17px;color:#1f1f8a;margin:12px 0}
+.cards{display:flex;gap:14px;margin:12px 0}
+.c{flex:1;background:#eef0fb;border:1px solid #d9d9f5;border-radius:10px;padding:12px 14px}
+.c .k{display:block;font-size:11.5px;color:#3a3a66}
+.c .v{display:block;font-size:20px;font-weight:700;margin-top:3px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:10px 0}
+th,td{border:1px solid #e0e1ee;padding:7px 9px;text-align:left}
+th{background:#eef0fb;color:#1f1f8a}
+.vals{font-size:10.5px;color:#5b5b78}
+.cap{font-size:11.5px;color:#6a6a85;margin:10px 0 4px}
+.chartbox{border:1px solid #e3e4f0;border-radius:8px;padding:8px;margin:4px 0 8px}
+.chartbox svg{width:100%;height:auto;display:block}
+.minigrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.minigrid .mini{border:1px solid #e3e4f0;border-radius:8px;padding:6px}
+.minigrid .mini h4{margin:0 0 2px;text-align:center;color:#1f1f8a;font-size:12px}
+.minigrid svg{width:100%;height:auto}
+.takeaways{background:#f7f8ff}
+.takeaways ul{margin:6px 0;padding-left:20px}
+.takeaways li{font-size:13px;margin:6px 0}
+.appendix .rawvals{font-size:10.5px;color:#5b5b78;word-spacing:2px;line-height:1.7}
+.muted{color:#999;font-style:italic}
+footer{padding:14px 48px;color:#9a9ab0;font-size:10.5px;border-top:1px solid #e3e4f0;margin-top:18px}
+@media print{
+  @page{margin:14mm}
+  section{padding:14px 0}
+  .head{padding:0 0 14px}
+  footer{padding:14px 0}
+  h2{break-after:avoid}
+  table,.chartbox,.minigrid,.cards{break-inside:avoid}
+}`;
+
+function buildReportHTML(){
+  const section = $("section").value;
+  const span = $("allDays").checked ? "all days" : $("day").value;
+  const N = population.length;
+  const now = new Date().toLocaleString();
+  const P = [];
+
+  P.push(`<!doctype html><html><head><meta charset="utf-8"><title>Screen Time Demonstration — Section ${section}</title><style>${REPORT_CSS}</style></head><body>`);
+
+  P.push(`<header class="head">
+    <h1>Screen Time Demonstration</h1>
+    <p class="subtitle">QAMO 4651 · Lecture 3 — Sampling Distributions, the Law of Large Numbers &amp; the Central Limit Theorem</p>
+    <p class="meta">Section ${section} &nbsp;·&nbsp; ${span} &nbsp;·&nbsp; ${N} students &nbsp;·&nbsp; generated ${now}</p>
+  </header>`);
+
+  P.push(`<section class="intro"><p>In class we ran a live experiment: each student entered their <strong>daily average screen time</strong> (in minutes). Because we collected responses from the whole class, those values are our <strong>population</strong> — which is unusual and powerful, because it lets us see the <em>true</em> population mean (<span class="m">μ</span>) and variance (<span class="m">σ²</span>) exactly. We then investigated the central question of statistics: <strong>how does the sample mean <span class="m">Ȳ</span> behave when we draw samples from a population?</strong> This handout records what we did and the numbers we obtained, so you can revisit the ideas later.</p></section>`);
+
+  // 1 — population
+  P.push(`<section><h2><span class="num">1</span> The population: our class</h2>`);
+  if (N === 0){ P.push(`<p class="muted">No submissions were recorded.</p>`); }
+  else {
+    P.push(`<p>We treated the class as the population (<span class="m">N</span> = ${N} students). The true population parameters are:</p>
+    <div class="cards">
+      <div class="c"><span class="k">Population mean <span class="m">μ</span></span><span class="v">${f2(mu)} min</span></div>
+      <div class="c"><span class="k">Population variance <span class="m">σ²</span></span><span class="v">${f2(sigma2)}</span></div>
+      <div class="c"><span class="k">Population std. dev <span class="m">σ</span></span><span class="v">${f2(sigma)} min</span></div>
+    </div>
+    <p class="cap">Each student's daily screen time (minutes); the dashed line marks the population mean <span class="m">μ</span>. Notice the distribution is right-skewed — a few heavy users stretch the tail.</p>
+    ${chartBlock("popChart")}`);
+  }
+  P.push(`</section>`);
+
+  // 2 — single samples
+  P.push(`<section><h2><span class="num">2</span> One sample at a time: why <span class="m">Ȳ</span> changes</h2>
+    <p>Every observation in a sample is a random variable, so the sample mean</p>
+    <p class="formula">Ȳ = (Y₁ + Y₂ + … + Yₙ) ⁄ n</p>
+    <p>is itself a random variable: each time we draw a new sample we get a different <span class="m">Ȳ</span>. The samples we drew in class:</p>`);
+  if (singleSamples.length === 0){ P.push(`<p class="muted">No individual samples were drawn in this session.</p>`); }
+  else {
+    P.push(`<table><thead><tr><th>Sample</th><th>n</th><th>Sample mean Ȳ</th><th>Sampled values (minutes)</th></tr></thead><tbody>`);
+    singleSamples.forEach((s,i)=> P.push(`<tr><td>${i+1}</td><td>${s.n}</td><td><strong>${f2(s.ybar)} min</strong></td><td class="vals">${s.vals.join(", ")}</td></tr>`));
+    P.push(`</tbody></table>`);
+  }
+  P.push(`</section>`);
+
+  // 3 — sampling distribution
+  P.push(`<section><h2><span class="num">3</span> The sampling distribution of <span class="m">Ȳ</span></h2>`);
+  if (!sampDist){ P.push(`<p class="muted">This step was not run in this session.</p>`); }
+  else {
+    P.push(`<p>We took <strong>${sampDist.reps} samples</strong>, each of size <strong>n = ${sampDist.n}</strong>, computed <span class="m">Ȳ</span> for each, and plotted all of them. The result is the <strong>sampling distribution of the sample mean</strong>. Theory predicts two things — and our simulation matches:</p>
+    <table><thead><tr><th>Quantity</th><th>What we got (simulated)</th><th>Theory</th></tr></thead><tbody>
+      <tr><td>Centre &nbsp;<span class="m">E[Ȳ]</span></td><td>${f2(sampDist.eY)} min</td><td><span class="m">μ</span> = ${f2(mu)} min</td></tr>
+      <tr><td>Spread &nbsp;<span class="m">Var[Ȳ]</span></td><td>${f2(sampDist.varY)}</td><td><span class="m">σ²⁄n</span> = ${f2(sampDist.theoryVar)}</td></tr>
+    </tbody></table>
+    <p class="cap">The distribution of <span class="m">Ȳ</span> over ${sampDist.reps} samples of size n = ${sampDist.n}; dashed line = population mean <span class="m">μ</span>.</p>
+    ${chartBlock("sampChart")}`);
+  }
+  P.push(`</section>`);
+
+  // 4 — LLN
+  P.push(`<section><h2><span class="num">4</span> The Law of Large Numbers</h2>
+    <p>The Law of Large Numbers says that as the sample size <span class="m">n</span> grows, the sample mean <span class="m">Ȳ</span> concentrates on the population mean <span class="m">μ</span>. The sampling distribution narrows because its spread, <span class="m">Var[Ȳ] = σ²⁄n</span>, shrinks toward zero. We confirmed this across several sample sizes:</p>`);
+  if (!llnResults){ P.push(`<p class="muted">This step was not run in this session.</p>`); }
+  else {
+    P.push(`<table><thead><tr><th>Sample size n</th><th>Mean of Ȳ's (≈ μ)</th><th>SD of Ȳ's (simulated)</th><th>Theory σ⁄√n</th></tr></thead><tbody>`);
+    llnResults.forEach(r=> P.push(`<tr><td>${r.n}</td><td>${f2(r.meanY)} min</td><td>${f2(r.sdY)} min</td><td>${f2(r.theorySd)} min</td></tr>`));
+    P.push(`</tbody></table>
+    <p class="cap">Every panel shares the same horizontal axis: as n increases, the distribution of <span class="m">Ȳ</span> tightens around <span class="m">μ</span> (dashed line).</p>
+    ${llnChartBlock()}`);
+  }
+  P.push(`</section>`);
+
+  // 5 — CLT
+  P.push(`<section><h2><span class="num">5</span> The Central Limit Theorem</h2>
+    <p>The Central Limit Theorem says that for a large sample size, the <em>standardized</em> sample mean</p>
+    <p class="formula">(Ȳ − μ) ⁄ σ<sub>Ȳ</sub> &nbsp;→&nbsp; N(0, 1)</p>
+    <p>follows a standard normal distribution — <strong>regardless of the shape of the population</strong>. Even though our screen-time population is skewed, the standardized sample mean traces the bell curve.</p>`);
+  if (!cltResult){ P.push(`<p class="muted">This step was not run in this session.</p>`); }
+  else {
+    P.push(`<table><thead><tr><th>Quantity</th><th>What we got</th><th>N(0,1) target</th></tr></thead><tbody>
+      <tr><td>Mean of standardized Ȳ</td><td>${f2(cltResult.meanZ)}</td><td>0</td></tr>
+      <tr><td>SD of standardized Ȳ</td><td>${f2(cltResult.sdZ)}</td><td>1</td></tr>
+    </tbody></table>
+    <p class="cap">Standardized <span class="m">Ȳ</span> from ${cltResult.reps} samples of size n = ${cltResult.n} (blue bars), with the standard normal density overlaid (red curve).</p>
+    ${chartBlock("cltChart")}`);
+  }
+  P.push(`</section>`);
+
+  // takeaways
+  P.push(`<section class="takeaways"><h2>What to remember</h2><ul>
+    <li>A sample mean <span class="m">Ȳ</span> is a <strong>random variable</strong> — it has its own distribution, called the sampling distribution.</li>
+    <li>On average it equals the population mean: <span class="m">E[Ȳ] = μ</span>. The sample mean is <strong>unbiased</strong>.</li>
+    <li>Larger samples give <strong>less variable</strong> estimates: <span class="m">Var[Ȳ] = σ²⁄n</span> shrinks as n grows — the Law of Large Numbers.</li>
+    <li>For large samples the sampling distribution is <strong>approximately normal</strong>, whatever the population looks like — the Central Limit Theorem.</li>
+    <li>Together, this is why we can learn about an entire population from a single sample — the foundation of everything we do next.</li>
+  </ul></section>`);
+
+  if (N > 0){
+    P.push(`<section class="appendix"><h2>Appendix — the raw data</h2><p>Every screen-time value submitted by the class (minutes):</p><p class="rawvals">${population.join(" · ")}</p></section>`);
+  }
+
+  P.push(`<footer>QAMO 4651 · Screen Time Demonstration · Section ${section} · ${span}</footer></body></html>`);
+  return P.join("\n");
+}
+
+function openReport(){
+  if (population.length === 0){ alert("No submissions yet — nothing to export."); return; }
+  const html = buildReportHTML();
+  const w = window.open("", "_blank");
+  if (!w){ alert("Please allow pop-ups for this site, then click 'Download PDF report' again."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  let printed = false;
+  const doPrint = ()=>{ if (printed) return; printed = true; try{ w.focus(); w.print(); }catch(e){} };
+  w.onload = ()=> setTimeout(doPrint, 350);
+  setTimeout(doPrint, 1000);
+}
+$("pdfBtn").addEventListener("click", openReport);
 </script>
 </body>
 </html>

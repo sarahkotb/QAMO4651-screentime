@@ -2,13 +2,22 @@ rules_version = '2';
 // QAMO 4651 — Screen Time Demonstration
 // Paste these into Firebase console → Firestore Database → Rules → Publish.
 //
-// Students may READ and CREATE submissions (so the projector count + population
-// update live). Nobody may edit or delete via the web app — that keeps students
-// from tampering with the class data. (You can still delete from the console.)
-// Creates are validated: a section of "001"/"002" and minutes in 0..1440.
+// control/session : the instructor's open/close switch (which section is live, which day).
+//   Anyone may read it (the student page watches it). Writes are validated.
+// submissions     : students may READ and CREATE — but a create only succeeds when the
+//   form is OPEN and the section matches the live session. Nobody may edit or delete
+//   via the web app (you can still delete from the console).
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    match /control/{doc} {
+      allow read: if true;
+      allow write: if request.resource.data.open is bool
+                   && request.resource.data.section in ['001','002']
+                   && request.resource.data.day is string;
+    }
+
     match /submissions/{doc} {
       allow read: if true;
 
@@ -16,7 +25,10 @@ service cloud.firestore {
                     && request.resource.data.minutes is int
                     && request.resource.data.minutes >= 0
                     && request.resource.data.minutes <= 1440
-                    && request.resource.data.day is string;
+                    && request.resource.data.day is string
+                    && exists(/databases/$(database)/documents/control/session)
+                    && get(/databases/$(database)/documents/control/session).data.open == true
+                    && request.resource.data.section == get(/databases/$(database)/documents/control/session).data.section;
 
       allow update, delete: if false;
     }
