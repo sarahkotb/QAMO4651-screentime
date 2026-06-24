@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instructor — Screen Time Demonstration — QAMO 4651</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="course">QAMO 4651 &middot; Principles of Econometrics</span>
+  <h1>Screen Time Demonstration</h1>
+  <p class="sub">Lecture 3 &middot; <span class="mathy">Instructor view</span></p>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== Controls ===== -->
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="section">Section (population)</label>
+        <select id="section"><option value="001">001</option><option value="002">002</option></select>
+      </div>
+      <div>
+        <label for="day">Class day</label>
+        <input type="date" id="day">
+      </div>
+      <div>
+        <label><input type="checkbox" id="allDays"> all days</label>
+      </div>
+      <div style="flex:1"></div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn ghost" id="qrToggle">📱 Student link &amp; QR</button>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn crimson" id="downloadBtn">⬇︎ Download Markdown</button>
+      </div>
+    </div>
+    <p class="note" id="status" style="margin-top:14px">Connecting…</p>
+    <button class="btn ghost" id="testDataBtn" style="margin-top:6px">🧪 Load test data (rehearsal)</button>
+    <span class="note" style="margin-left:8px">— injects ~40 fake skewed entries so you can practice. Real submissions override it.</span>
+  </div>
+
+  <!-- ===== Student link & QR (collapsible) ===== -->
+  <div class="card" id="qrCard" style="display:none">
+    <h2>Student link &amp; QR code</h2>
+    <p class="note">Students scan this to submit. The QR points to wherever this page is published —
+      download it and drop it onto your slide.</p>
+    <div class="row" style="align-items:center">
+      <div style="text-align:center">
+        <canvas id="qrCanvas" width="320" height="320" style="border:1px solid var(--line); border-radius:10px"></canvas>
+        <div><button class="btn ghost" id="qrDownload" style="margin-top:10px">Download QR (PNG)</button></div>
+      </div>
+      <div style="flex:1; min-width:220px">
+        <label>Student URL</label>
+        <input type="text" id="studentUrl" readonly style="width:100%; font-size:.9rem">
+        <p class="note" style="margin-top:10px">Open this on your phone to test it. Section is chosen by the student on the form.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Step 1: Population ===== -->
+  <div class="card">
+    <h2><span class="step">Step 1</span> The population: QAMO 4651 students</h2>
+    <p class="note">Every submission from this section. This is our <span class="mathy">population</span> — so we get to
+      see the true parameters <span class="mathy">μ</span> and <span class="mathy">σ²</span> directly.</p>
+    <div class="stats">
+      <div class="stat"><div class="k">N (students)</div><div class="v" id="pN">—</div></div>
+      <div class="stat"><div class="k">Population mean &nbsp;<span class="mathy">μ</span></div><div class="v" id="pMu">—<small> min</small></div></div>
+      <div class="stat"><div class="k">Population variance &nbsp;<span class="mathy">σ²</span></div><div class="v" id="pVar">—</div></div>
+      <div class="stat"><div class="k">Std. dev &nbsp;<span class="mathy">σ</span></div><div class="v" id="pSd">—<small> min</small></div></div>
+    </div>
+    <svg id="popChart" class="chart" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" style="margin-top:14px"></svg>
+    <p class="empty" id="popEmpty">Waiting for students to submit…</p>
+  </div>
+
+  <!-- ===== Step 2: Single samples (Y-bar changes) ===== -->
+  <div class="card">
+    <h2><span class="step">Step 2</span> Take a sample &rarr; <span class="mathy">Ȳ</span> changes</h2>
+    <p class="note">Draw an i.i.d. sample of size <span class="mathy">n</span> (with replacement) and compute the sample mean
+      <span class="mathy">Ȳ</span>. Each draw is a different sample — so <span class="mathy">Ȳ</span> moves around.</p>
+    <div class="row">
+      <div><label for="nSingle">Sample size n</label><input type="number" id="nSingle" min="1" value="10"></div>
+      <div><label>&nbsp;</label><button class="btn" id="drawBtn">🎲 Draw a sample</button></div>
+      <div><label>&nbsp;</label><button class="btn ghost" id="clearSamplesBtn">Clear</button></div>
+    </div>
+    <ol class="samplelist" id="sampleList"></ol>
+  </div>
+
+  <!-- ===== Step 3: Sampling distribution ===== -->
+  <div class="card">
+    <h2><span class="step">Step 3</span> The sampling distribution of <span class="mathy">Ȳ</span></h2>
+    <p class="note">Take many samples of size n, compute <span class="mathy">Ȳ</span> each time, and plot all the
+      <span class="mathy">Ȳ</span>'s. Then compare to the theory: <span class="mathy">E[Ȳ] = μ</span> and
+      <span class="mathy">Var[Ȳ] = σ²⁄n</span>.</p>
+    <div class="row">
+      <div><label for="nSamp">Sample size n</label><input type="number" id="nSamp" min="1" value="10"></div>
+      <div><label for="reps">Number of samples</label><input type="number" id="reps" min="1" value="1000"></div>
+      <div><label>&nbsp;</label><button class="btn" id="buildBtn">📊 Build sampling distribution</button></div>
+    </div>
+    <div class="stats" id="sampStats" style="display:none">
+      <div class="stat"><div class="k"><span class="mathy">E[Ȳ]</span> (mean of the Ȳ's)</div><div class="v" id="eYbar">—</div></div>
+      <div class="stat compare"><div class="k">compare to <span class="mathy">μ</span></div><div class="v" id="muCompare">—</div></div>
+      <div class="stat"><div class="k"><span class="mathy">Var[Ȳ]</span> (var of the Ȳ's)</div><div class="v" id="varYbar">—</div></div>
+      <div class="stat compare"><div class="k">compare to <span class="mathy">σ²⁄n</span></div><div class="v" id="varCompare">—</div></div>
+    </div>
+    <svg id="sampChart" class="chart" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" style="margin-top:14px"></svg>
+    <div class="legend" id="sampLegend" style="display:none">
+      <span><span class="sw" style="background:var(--blue)"></span>distribution of Ȳ</span>
+      <span><span class="sw" style="background:var(--crimson)"></span>population mean μ</span>
+    </div>
+  </div>
+
+  <!-- ===== Step 4: Law of Large Numbers ===== -->
+  <div class="card">
+    <h2><span class="step">Step 4</span> Law of Large Numbers</h2>
+    <p class="note">As n grows, the sampling distribution of <span class="mathy">Ȳ</span> narrows around
+      <span class="mathy">μ</span> — because <span class="mathy">Var[Ȳ] = σ²⁄n → 0</span>. We run a round of samples for
+      each n (same x-axis), then check <span class="mathy">SD[Ȳ]</span> against <span class="mathy">σ⁄√n</span>.</p>
+    <div class="row">
+      <div><label for="llnReps">Samples per round</label><input type="number" id="llnReps" min="1" value="1000"></div>
+      <div><label>&nbsp;</label><button class="btn" id="llnBtn">📉 Run LLN</button></div>
+    </div>
+    <div class="small-multiples" id="llnCharts" style="margin-top:14px"></div>
+    <table id="llnTable" style="display:none">
+      <thead><tr><th>n</th><th>mean of Ȳ's <span class="mathy">≈ μ</span></th><th>SD of Ȳ's</th><th>theory <span class="mathy">σ⁄√n</span></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- ===== Step 5: Central Limit Theorem ===== -->
+  <div class="card">
+    <h2><span class="step">Step 5</span> Central Limit Theorem</h2>
+    <p class="note">The population (screen time) is skewed — yet the <em>standardized</em> sample mean
+      <span class="mathy">(Ȳ − μ) ⁄ σ<sub>Ȳ</sub></span> follows <span class="mathy">N(0,1)</span> as n grows, no matter the
+      population's shape. The bell curve is overlaid.</p>
+    <div class="row">
+      <div><label for="cltN">Sample size n</label><input type="number" id="cltN" min="1" value="30"></div>
+      <div><label for="cltReps">Number of samples</label><input type="number" id="cltReps" min="1" value="2000"></div>
+      <div><label>&nbsp;</label><button class="btn" id="cltBtn">🔔 Run CLT</button></div>
+    </div>
+    <svg id="cltChart" class="chart" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" style="margin-top:14px"></svg>
+    <div class="legend" id="cltLegend" style="display:none">
+      <span><span class="sw" style="background:var(--blue)"></span>standardized Ȳ</span>
+      <span><span class="sw" style="background:var(--crimson)"></span>N(0,1) density</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, query, where, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
+
+const cfg = window.APP_CONFIG;
+const $ = id => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* ---------------- statistics helpers ---------------- */
+const mean = a => a.reduce((s,x)=>s+x,0) / a.length;
+const variancePop = a => { const m = mean(a); return mean(a.map(x => (x-m)*(x-m))); }; // ÷N
+const sum = a => a.reduce((s,x)=>s+x,0);
+function sampleWithReplacement(pop, n){
+  const out = new Array(n);
+  for (let i=0;i<n;i++) out[i] = pop[(Math.random()*pop.length)|0];
+  return out;
+}
+const fmt = (x, d=1) => (x==null || !isFinite(x)) ? "—" : x.toLocaleString(undefined,{minimumFractionDigits:d, maximumFractionDigits:d});
+const normalPdf = z => Math.exp(-0.5*z*z) / Math.sqrt(2*Math.PI);
+
+/* ---------------- histogram (SVG) ---------------- */
+function histogram(svg, data, opts={}){
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  if (!data || data.length === 0) return;
+  const W = 760, H = 300, mL = 48, mR = 14, mT = 14, mB = 42;
+  const plotW = W-mL-mR, plotH = H-mT-mB;
+
+  let lo = opts.xMin ?? Math.min(...data);
+  let hi = opts.xMax ?? Math.max(...data);
+  if (lo === hi){ lo -= 1; hi += 1; }
+  const bins = opts.bins ?? Math.max(8, Math.min(30, Math.round(Math.sqrt(data.length))));
+  const bw = (hi-lo)/bins;
+  const counts = new Array(bins).fill(0);
+  for (const v of data){
+    let i = Math.floor((v-lo)/bw); if (i<0) i=0; if (i>=bins) i=bins-1;
+    counts[i]++;
+  }
+  const density = !!opts.density;
+  const heights = density ? counts.map(c => c/(data.length*bw)) : counts;
+  const yMax = opts.yMax ?? ((Math.max(...heights) * 1.12) || 1);
+
+  const x = v => mL + (v-lo)/(hi-lo)*plotW;
+  const y = h => mT + plotH - (h/yMax)*plotH;
+
+  const add = (tag, attrs, parent=svg) => {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    parent.appendChild(el); return el;
+  };
+
+  // axes
+  add("line",{x1:mL,y1:mT+plotH,x2:mL+plotW,y2:mT+plotH,stroke:"#c9cae0"});
+  add("line",{x1:mL,y1:mT,x2:mL,y2:mT+plotH,stroke:"#c9cae0"});
+
+  // bars
+  const color = opts.color || "#2d2db4";
+  for (let i=0;i<bins;i++){
+    if (heights[i]===0) continue;
+    const bx = x(lo+i*bw)+1, bw2 = Math.max(1, x(lo+(i+1)*bw)-x(lo+i*bw)-2);
+    add("rect",{x:bx, y:y(heights[i]), width:bw2, height:mT+plotH-y(heights[i]), fill:color, opacity:.85, rx:1.5});
+  }
+
+  // x ticks
+  const ticks = 6;
+  for (let t=0;t<=ticks;t++){
+    const val = lo + (hi-lo)*t/ticks;
+    const px = x(val);
+    add("line",{x1:px,y1:mT+plotH,x2:px,y2:mT+plotH+4,stroke:"#c9cae0"});
+    const lab = add("text",{x:px,y:mT+plotH+18,"text-anchor":"middle","font-size":11,fill:"#5b5b78"});
+    lab.textContent = fmt(val,0);
+  }
+  if (opts.xLabel){
+    const xl = add("text",{x:mL+plotW/2,y:H-6,"text-anchor":"middle","font-size":12,fill:"#5b5b78"});
+    xl.textContent = opts.xLabel;
+  }
+
+  // vertical reference line (e.g. population mean μ)
+  if (opts.vline != null && opts.vline>=lo && opts.vline<=hi){
+    add("line",{x1:x(opts.vline),y1:mT,x2:x(opts.vline),y2:mT+plotH,stroke:"#c8102e","stroke-width":2,"stroke-dasharray":"5 4"});
+  }
+
+  // overlay curve: array of {x, y(density)} in data units
+  if (opts.curve){
+    let d="";
+    opts.curve.forEach((p,i)=>{ d += (i?"L":"M") + x(p.x).toFixed(1) + " " + y(p.y).toFixed(1) + " "; });
+    add("path",{d, fill:"none", stroke:"#c8102e", "stroke-width":2.5});
+  }
+}
+
+/* ---------------- mini histogram for LLN small multiples ---------------- */
+function miniHistogram(svg, data, xMin, xMax, mu){
+  histogram(svg, data, {xMin, xMax, bins:24, color:"#2d2db4", vline:mu});
+}
+
+/* ====================================================================
+   FIREBASE + LIVE POPULATION
+   ==================================================================== */
+let db, ready = false;
+if (!cfg || cfg.firebase.apiKey === "PASTE_ME"){
+  $("status").textContent = "⚠️ Not configured yet — paste your Firebase config into config.js (see README).";
+} else {
+  try { db = getFirestore(initializeApp(cfg.firebase)); ready = true; }
+  catch(e){ $("status").textContent = "⚠️ Firebase failed to initialize: " + e.message; }
+}
+
+// defaults from config
+$("nSingle").value = cfg?.defaultSampleSize ?? 10;
+$("nSamp").value   = cfg?.defaultSampleSize ?? 10;
+$("reps").value    = cfg?.defaultRepetitions ?? 1000;
+$("llnReps").value = cfg?.defaultRepetitions ?? 1000;
+
+const todayStr = () => { const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+$("day").value = todayStr();
+
+let population = [];     // array of minutes for current section+day
+let popRecords = [];     // {minutes, time} for the markdown export
+let unsub = null;
+
+function subscribe(){
+  if (!ready) return;
+  if (unsub) unsub();
+  const useAll = $("allDays").checked;
+  const col = collection(db, "submissions");
+  const q = useAll ? col : query(col, where("day","==",$("day").value));
+  $("status").textContent = "Listening for submissions…";
+  unsub = onSnapshot(q, snap => {
+    const section = $("section").value;
+    const recs = [];
+    snap.forEach(d => {
+      const x = d.data();
+      if (x.section === section && Number.isFinite(x.minutes)){
+        recs.push({ minutes: x.minutes,
+          time: x.createdAt?.toDate ? x.createdAt.toDate() : null });
+      }
+    });
+    recs.sort((a,b)=> (a.time?.getTime()||0) - (b.time?.getTime()||0));
+    popRecords = recs;
+    population = recs.map(r => r.minutes);
+    refreshPopulation();
+  }, err => { $("status").textContent = "⚠️ Read error: " + err.message; });
+}
+
+let mu=NaN, sigma2=NaN, sigma=NaN;
+function refreshPopulation(){
+  const N = population.length;
+  const span = $("allDays").checked ? "all days" : $("day").value;
+  $("status").textContent = `Section ${$("section").value} · ${span} · ${N} submission${N===1?"":"s"}`;
+  if (N === 0){
+    $("popEmpty").style.display = "block";
+    histogram($("popChart"), []);
+    ["pN","pMu","pVar","pSd"].forEach(k=>$(k).textContent="—");
+    return;
+  }
+  $("popEmpty").style.display = "none";
+  mu = mean(population); sigma2 = variancePop(population); sigma = Math.sqrt(sigma2);
+  $("pN").textContent = N;
+  $("pMu").innerHTML = `${fmt(mu)}<small> min</small>`;
+  $("pVar").textContent = fmt(sigma2,0);
+  $("pSd").innerHTML = `${fmt(sigma)}<small> min</small>`;
+  histogram($("popChart"), population, {color:"#2d2db4", vline:mu, xLabel:"daily screen time (minutes)"});
+}
+
+["section","day"].forEach(id => $(id).addEventListener("change", subscribe));
+$("allDays").addEventListener("change", () => { $("day").disabled = $("allDays").checked; subscribe(); });
+subscribe();
+
+// Rehearsal: synthesize a realistic right-skewed screen-time population (minutes)
+$("testDataBtn").addEventListener("click", ()=>{
+  if (unsub) { unsub(); unsub = null; }
+  const recs = [];
+  for (let i=0;i<40;i++){
+    // lognormal-ish: median ~250 min, right tail
+    const v = Math.round(Math.exp(5.5 + 0.55*gaussian()));
+    recs.push({ minutes: Math.min(cfg?.maxMinutes ?? 1440, Math.max(15, v)), time: new Date() });
+  }
+  popRecords = recs; population = recs.map(r=>r.minutes);
+  refreshPopulation();
+  $("status").textContent += "  ·  🧪 test data loaded";
+});
+function gaussian(){ // Box–Muller
+  let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+/* ====================================================================
+   STEP 2 — single samples
+   ==================================================================== */
+let singleSamples = []; // {n, ybar, vals}
+function drawSample(){
+  if (population.length===0){ alert("No submissions yet."); return; }
+  const n = Math.max(1, Math.round(Number($("nSingle").value)||10));
+  const vals = sampleWithReplacement(population, n);
+  const ybar = mean(vals);
+  singleSamples.push({ n, ybar, vals });
+  renderSamples();
+}
+function renderSamples(){
+  const ol = $("sampleList"); ol.innerHTML = "";
+  singleSamples.forEach((s,i)=>{
+    const li = document.createElement("li");
+    const shown = s.vals.slice(0,12).join(", ") + (s.vals.length>12 ? ", …" : "");
+    li.innerHTML = `Sample ${i+1}: <span class="ybar">Ȳ<sub>${i+1}</sub> = ${fmt(s.ybar)} min</span>
+      <span class="vals">&nbsp; (n=${s.n}: ${shown})</span>`;
+    ol.appendChild(li);
+  });
+}
+$("drawBtn").addEventListener("click", drawSample);
+$("clearSamplesBtn").addEventListener("click", ()=>{ singleSamples=[]; renderSamples(); });
+
+/* ====================================================================
+   STEP 3 — sampling distribution
+   ==================================================================== */
+let sampDist = null; // {n, reps, ybars, eY, varY}
+function buildSamplingDist(){
+  if (population.length===0){ alert("No submissions yet."); return; }
+  const n = Math.max(1, Math.round(Number($("nSamp").value)||10));
+  const reps = Math.max(1, Math.round(Number($("reps").value)||1000));
+  const ybars = new Array(reps);
+  for (let r=0;r<reps;r++) ybars[r] = mean(sampleWithReplacement(population, n));
+  const eY = mean(ybars), varY = variancePop(ybars);
+  sampDist = { n, reps, ybars, eY, varY, theoryVar: sigma2/n };
+
+  $("sampStats").style.display = "flex";
+  $("sampLegend").style.display = "flex";
+  $("eYbar").innerHTML = `${fmt(eY)}<small> min</small>`;
+  $("muCompare").innerHTML = `<span class="mathy">μ</span> = ${fmt(mu)}<small> min</small>`;
+  $("varYbar").textContent = fmt(varY,0);
+  $("varCompare").innerHTML = `<span class="mathy">σ²⁄n</span> = ${fmt(sigma2/n,0)}`;
+  histogram($("sampChart"), ybars, {color:"#2d2db4", vline:mu, xLabel:"sample mean Ȳ (minutes)"});
+}
+$("buildBtn").addEventListener("click", buildSamplingDist);
+
+/* ====================================================================
+   STEP 4 — Law of Large Numbers
+   ==================================================================== */
+let llnResults = null;
+function runLLN(){
+  if (population.length===0){ alert("No submissions yet."); return; }
+  const reps = Math.max(1, Math.round(Number($("llnReps").value)||1000));
+  const ns = cfg.lnnSampleSizes;
+  const xMin = Math.min(...population), xMax = Math.max(...population);
+  const container = $("llnCharts"); container.innerHTML = "";
+  const rows = [];
+  llnResults = [];
+
+  ns.forEach(n => {
+    const ybars = new Array(reps);
+    for (let r=0;r<reps;r++) ybars[r] = mean(sampleWithReplacement(population, n));
+    const m = mean(ybars), sd = Math.sqrt(variancePop(ybars));
+    llnResults.push({ n, reps, meanY:m, sdY:sd, theorySd: sigma/Math.sqrt(n) });
+
+    const cell = document.createElement("div"); cell.className="mini";
+    const h4 = document.createElement("h4"); h4.textContent = `n = ${n}`; cell.appendChild(h4);
+    const svg = document.createElementNS(SVGNS,"svg");
+    svg.setAttribute("viewBox","0 0 760 300"); svg.setAttribute("class","chart");
+    cell.appendChild(svg); container.appendChild(cell);
+    miniHistogram(svg, ybars, xMin, xMax, mu);
+
+    rows.push(`<tr><td>${n}</td><td>${fmt(m)} min</td><td>${fmt(sd)} min</td><td>${fmt(sigma/Math.sqrt(n))} min</td></tr>`);
+  });
+
+  const tbl = $("llnTable"); tbl.style.display="table";
+  tbl.querySelector("tbody").innerHTML = rows.join("");
+}
+$("llnBtn").addEventListener("click", runLLN);
+
+/* ====================================================================
+   STEP 5 — Central Limit Theorem
+   ==================================================================== */
+let cltResult = null;
+function runCLT(){
+  if (population.length===0){ alert("No submissions yet."); return; }
+  const n = Math.max(1, Math.round(Number($("cltN").value)||30));
+  const reps = Math.max(1, Math.round(Number($("cltReps").value)||2000));
+  const sdYbar = sigma/Math.sqrt(n);
+  const z = new Array(reps);
+  for (let r=0;r<reps;r++) z[r] = (mean(sampleWithReplacement(population, n)) - mu)/sdYbar;
+  cltResult = { n, reps, meanZ: mean(z), sdZ: Math.sqrt(variancePop(z)) };
+
+  // standard normal overlay across [-4,4]
+  const curve = [];
+  for (let t=-4;t<=4.0001;t+=0.1) curve.push({x:t, y:normalPdf(t)});
+
+  histogram($("cltChart"), z, {density:true, bins:28, xMin:-4, xMax:4,
+    color:"#2d2db4", curve, xLabel:"standardized sample mean  (Ȳ − μ) ⁄ σ_Ȳ"});
+  $("cltLegend").style.display = "flex";
+}
+$("cltBtn").addEventListener("click", runCLT);
+
+/* ====================================================================
+   QR CODE + STUDENT LINK
+   ==================================================================== */
+const studentUrl = new URL("index.html", window.location.href).href;
+$("studentUrl").value = studentUrl;
+$("qrToggle").addEventListener("click", ()=>{
+  const c = $("qrCard");
+  c.style.display = c.style.display==="none" ? "block" : "none";
+  if (c.style.display==="block"){
+    QRCode.toCanvas($("qrCanvas"), studentUrl, {width:320, margin:1,
+      color:{dark:"#1f1f8a", light:"#ffffff"}}).catch(e=>console.error(e));
+  }
+});
+$("qrDownload").addEventListener("click", async ()=>{
+  // render large for slides
+  const big = document.createElement("canvas");
+  try{
+    await QRCode.toCanvas(big, studentUrl, {width:1000, margin:2, color:{dark:"#1f1f8a", light:"#ffffff"}});
+    const a = document.createElement("a");
+    a.href = big.toDataURL("image/png");
+    a.download = "screen-time-QR.png"; a.click();
+  }catch(e){ console.error(e); }
+});
+
+/* ====================================================================
+   DOWNLOAD MARKDOWN
+   ==================================================================== */
+function buildMarkdown(){
+  const section = $("section").value;
+  const span = $("allDays").checked ? "all days" : $("day").value;
+  const N = population.length;
+  const L = [];
+  L.push(`# QAMO 4651 — Section ${section} — Screen Time Demonstration`);
+  L.push(`*Lecture 3 · ${span} · exported ${new Date().toLocaleString()}*`);
+  L.push("");
+
+  // population
+  L.push(`## Step 1 — Population parameters`);
+  L.push("");
+  L.push(`| Parameter | Value |`);
+  L.push(`|---|---|`);
+  L.push(`| N (students) | ${N} |`);
+  L.push(`| Population mean μ | ${isFinite(mu)?mu.toFixed(2):"—"} min |`);
+  L.push(`| Population variance σ² | ${isFinite(sigma2)?sigma2.toFixed(2):"—"} |`);
+  L.push(`| Population std. dev σ | ${isFinite(sigma)?sigma.toFixed(2):"—"} min |`);
+  L.push("");
+  L.push(`### Raw submissions (the numbers students entered)`);
+  L.push("");
+  L.push(`| # | Screen time (min) | Submitted |`);
+  L.push(`|---|---|---|`);
+  popRecords.forEach((r,i)=> L.push(`| ${i+1} | ${r.minutes} | ${r.time?r.time.toLocaleString():""} |`));
+  L.push("");
+
+  // single samples
+  L.push(`## Step 2 — Samples drawn in class (Ȳ changes each time)`);
+  L.push("");
+  if (singleSamples.length===0){ L.push("_No samples drawn._"); }
+  else {
+    L.push(`| Sample | n | Ȳ (min) | Sampled values |`);
+    L.push(`|---|---|---|---|`);
+    singleSamples.forEach((s,i)=> L.push(`| ${i+1} | ${s.n} | ${s.ybar.toFixed(2)} | ${s.vals.join(", ")} |`));
+  }
+  L.push("");
+
+  // sampling distribution
+  L.push(`## Step 3 — Sampling distribution of Ȳ`);
+  L.push("");
+  if (!sampDist){ L.push("_Not run._"); }
+  else {
+    L.push(`Built from **${sampDist.reps} samples** of size **n = ${sampDist.n}**.`);
+    L.push("");
+    L.push(`| Quantity | Simulated | Theory |`);
+    L.push(`|---|---|---|`);
+    L.push(`| E[Ȳ] | ${sampDist.eY.toFixed(2)} min | μ = ${mu.toFixed(2)} min |`);
+    L.push(`| Var[Ȳ] | ${sampDist.varY.toFixed(2)} | σ²/n = ${sampDist.theoryVar.toFixed(2)} |`);
+  }
+  L.push("");
+
+  // LLN
+  L.push(`## Step 4 — Law of Large Numbers`);
+  L.push("");
+  if (!llnResults){ L.push("_Not run._"); }
+  else {
+    L.push(`Each row: ${llnResults[0].reps} samples of size n.`);
+    L.push("");
+    L.push(`| n | mean of Ȳ's (≈ μ) | SD of Ȳ's | theory σ/√n |`);
+    L.push(`|---|---|---|---|`);
+    llnResults.forEach(r=> L.push(`| ${r.n} | ${r.meanY.toFixed(2)} | ${r.sdY.toFixed(2)} | ${r.theorySd.toFixed(2)} |`));
+  }
+  L.push("");
+
+  // CLT
+  L.push(`## Step 5 — Central Limit Theorem`);
+  L.push("");
+  if (!cltResult){ L.push("_Not run._"); }
+  else {
+    L.push(`Standardized (Ȳ − μ)/σ_Ȳ from **${cltResult.reps} samples** of size **n = ${cltResult.n}**.`);
+    L.push("");
+    L.push(`| Quantity | Simulated | N(0,1) target |`);
+    L.push(`|---|---|---|`);
+    L.push(`| Mean of standardized Ȳ | ${cltResult.meanZ.toFixed(3)} | 0 |`);
+    L.push(`| SD of standardized Ȳ | ${cltResult.sdZ.toFixed(3)} | 1 |`);
+  }
+  L.push("");
+  return L.join("\n");
+}
+$("downloadBtn").addEventListener("click", ()=>{
+  const md = buildMarkdown();
+  const section = $("section").value;
+  const day = $("allDays").checked ? "all-days" : $("day").value;
+  const blob = new Blob([md], {type:"text/markdown"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `QAMO4651-${section}_screen-time_${day}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>

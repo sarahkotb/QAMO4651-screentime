@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen Time Demonstration — QAMO 4651</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="titlebar">
+  <h1>Screen Time Demonstration</h1>
+  <p class="sub">Lecture 3 &middot; QAMO 4651</p>
+</div>
+
+<div class="wrap" style="max-width:520px">
+
+  <div class="card" id="formCard">
+    <h2>Enter your screen time</h2>
+    <p class="note">Find <strong>yesterday's daily average screen time</strong> on your phone and enter it
+       <strong>in minutes</strong>.<br>
+       iPhone: Settings &rarr; Screen Time. Android: Settings &rarr; Digital Wellbeing.</p>
+
+    <div class="row" style="margin-bottom:16px">
+      <div>
+        <label for="section">Your section</label>
+        <select id="section">
+          <option value="001">001</option>
+          <option value="002">002</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label for="minutes">Daily average (minutes)</label>
+        <input type="number" id="minutes" min="0" max="1440" step="1" placeholder="e.g. 287" style="width:100%">
+      </div>
+    </div>
+
+    <button class="btn" id="submitBtn" style="width:100%; padding:13px">Submit my screen time</button>
+    <p id="msg" class="note" style="margin-top:12px; min-height:1.2em"></p>
+  </div>
+
+  <div class="card" id="thanksCard" style="display:none; text-align:center">
+    <h2 style="justify-content:center">✅ You're in!</h2>
+    <p class="note">Your screen time has been added to the class population.</p>
+    <p class="pill" id="liveCount">&hellip;</p>
+    <p class="note" style="margin-top:16px">You can put your phone away — watch the projector. 📈</p>
+    <button class="btn ghost" id="againBtn" style="margin-top:6px">Submit another entry</button>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp, query, where, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const cfg = window.APP_CONFIG;
+const $ = id => document.getElementById(id);
+
+// --- guard against an un-configured deploy ---
+if (!cfg || cfg.firebase.apiKey === "PASTE_ME") {
+  $("msg").textContent = "⚠️ This page isn't configured yet (config.js). Tell your instructor.";
+  $("submitBtn").disabled = true;
+}
+
+let db;
+try {
+  const app = initializeApp(cfg.firebase);
+  db = getFirestore(app);
+} catch (e) { /* config guard above already messaged */ }
+
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+};
+
+$("submitBtn").addEventListener("click", async () => {
+  const section = $("section").value;
+  const minutes = Number($("minutes").value);
+  const msg = $("msg");
+
+  if (!Number.isFinite(minutes) || $("minutes").value.trim() === "") {
+    msg.textContent = "Please enter a number of minutes."; return;
+  }
+  if (minutes < 0 || minutes > cfg.maxMinutes) {
+    msg.textContent = `Please enter minutes between 0 and ${cfg.maxMinutes}.`; return;
+  }
+
+  $("submitBtn").disabled = true;
+  msg.textContent = "Submitting…";
+  try {
+    await addDoc(collection(db, "submissions"), {
+      section,
+      minutes: Math.round(minutes),
+      day: todayStr(),
+      createdAt: serverTimestamp()
+    });
+    showThanks(section);
+  } catch (e) {
+    msg.textContent = "Hmm, that didn't go through. Check your connection and try again.";
+    $("submitBtn").disabled = false;
+  }
+});
+
+function showThanks(section){
+  $("formCard").style.display = "none";
+  $("thanksCard").style.display = "block";
+  // live count for this section + today
+  const q = query(collection(db, "submissions"), where("day","==",todayStr()));
+  onSnapshot(q, snap => {
+    let n = 0;
+    snap.forEach(d => { if (d.data().section === section) n++; });
+    $("liveCount").textContent = `${n} student${n===1?"":"s"} in section ${section} have submitted`;
+  });
+}
+
+$("againBtn").addEventListener("click", () => {
+  $("minutes").value = "";
+  $("submitBtn").disabled = false;
+  $("msg").textContent = "";
+  $("thanksCard").style.display = "none";
+  $("formCard").style.display = "block";
+});
+</script>
+</body>
+</html>
