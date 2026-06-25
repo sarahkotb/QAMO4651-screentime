@@ -184,6 +184,46 @@
 </div>
 
 <script src="config.js"></script>
+<script>
+/* Instructor passcode gate (runs before the dashboard). If no hash is configured,
+   the page opens normally. The plaintext passcode is never stored — only its hash. */
+(function(){
+  const hash = (window.APP_CONFIG && window.APP_CONFIG.instructorPasscodeHash) || "";
+  if (!hash) return;                                   // no passcode set → open
+  if (sessionStorage.getItem("instr_ok") === "1") return; // already unlocked this session
+
+  async function sha256hex(s){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+
+  const g = document.createElement("div");
+  g.id = "gate";
+  g.style.cssText = "position:fixed;inset:0;background:#f4f5fb;z-index:99999;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif";
+  g.innerHTML = `
+    <div style="background:#fff;border:1px solid #e3e4f0;border-radius:14px;padding:28px 30px;max-width:360px;width:90%;box-shadow:0 6px 24px rgba(20,20,60,.12);text-align:center">
+      <h2 style="color:#1f1f8a;margin:0 0 6px">Instructor access</h2>
+      <p style="color:#5b5b78;font-size:.9rem;margin:0 0 16px">Enter the passcode to open the dashboard.</p>
+      <input id="gatePass" type="password" placeholder="Passcode" autofocus style="width:100%;padding:10px 12px;border:1px solid #e3e4f0;border-radius:9px;font:inherit">
+      <p id="gateErr" style="color:#c8102e;font-size:.82rem;min-height:1.1em;margin:8px 0 0"></p>
+      <button id="gateBtn" style="margin-top:10px;width:100%;padding:11px;border:0;border-radius:10px;background:#2d2db4;color:#fff;font:inherit;font-weight:600;cursor:pointer">Enter</button>
+    </div>`;
+  const add = () => { document.body.prepend(g); wire(); };
+  if (document.body) add(); else document.addEventListener("DOMContentLoaded", add);
+
+  function wire(){
+    const inp = g.querySelector("#gatePass"), err = g.querySelector("#gateErr");
+    async function tryUnlock(){
+      const h = await sha256hex(inp.value);
+      if (h === hash){ sessionStorage.setItem("instr_ok","1"); g.remove(); }
+      else { err.textContent = "Incorrect passcode."; inp.select(); }
+    }
+    g.querySelector("#gateBtn").addEventListener("click", tryUnlock);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+    inp.focus();
+  }
+})();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, query, where, onSnapshot, doc, setDoc }

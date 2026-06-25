@@ -22,5 +22,11 @@ window.APP_CONFIG = {
   defaultSampleSize: 10,    // n for "draw a sample" + sampling distribution
   defaultRepetitions: 1000, // how many samples to build the sampling distribution
   lnnSampleSizes: [5, 10, 15, 20, 25], // sample sizes for the Law of Large Numbers panel
-  maxMinutes: 1440          // reject impossible screen-time entries (minutes in a day)
+  maxMinutes: 1440,         // reject impossible screen-time entries (minutes in a day)
+
+  // -------- Instructor page passcode (SHA-256 hash, NOT the passcode itself) -----
+  // Protects instructor.html with a passcode prompt. Leave "" for no prompt.
+  // To set/change it, tell Claude the passcode you want and it will fill in the hash,
+  // or run:  echo -n "YOUR PASSCODE" | shasum -a 256
+  instructorPasscodeHash: "79ef79679a5dae17267869adff5e8a0e4513c008633f8a1a4bffa2e0870d44ff"
 };

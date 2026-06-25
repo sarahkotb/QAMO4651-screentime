@@ -45,7 +45,7 @@
     <p class="note">Your screen time has been added to the class population.</p>
     <p class="pill" id="liveCount">&hellip;</p>
     <p class="note" style="margin-top:16px">You can put your phone away — watch the projector. 📈</p>
-    <button class="btn ghost" id="againBtn" style="margin-top:6px">Submit another entry</button>
+    <p class="note" style="font-size:.82rem">One entry per device. Thanks for taking part!</p>
   </div>
 
 </div>
@@ -69,8 +69,15 @@ let db;
 try { db = getFirestore(initializeApp(cfg.firebase)); } catch (e) {}
 
 let session = null;       // { open, section, day } from the instructor
-let hasSubmitted = false; // stays on the thank-you screen until they choose otherwise
 let countUnsub = null;
+
+// one entry per device, per class session (section + day), remembered in this browser
+function subKey(){ return session ? `st_done_${session.section}_${session.day}` : ""; }
+function alreadySubmitted(){
+  try { return !!session && localStorage.getItem(subKey()) === "1"; }
+  catch (e) { return false; }
+}
+function markSubmitted(){ try { localStorage.setItem(subKey(), "1"); } catch (e) {} }
 
 function render(){
   const open = !!(session && session.open === true);
@@ -83,8 +90,12 @@ function render(){
   }
   hide($("closedCard"));
   $("sectionBanner").textContent = "Section " + session.section;
-  if (hasSubmitted){ hide($("formCard")); show($("thanksCard")); }
-  else { show($("formCard")); hide($("thanksCard")); }
+  if (alreadySubmitted()){
+    hide($("formCard")); show($("thanksCard"));
+    if (!countUnsub) startLiveCount();   // page reloaded after a prior submission
+  } else {
+    show($("formCard")); hide($("thanksCard"));
+  }
 }
 
 // Watch the instructor's open/close switch in real time
@@ -101,6 +112,7 @@ $("submitBtn").addEventListener("click", async () => {
   if (!session || session.open !== true){
     render(); return; // closed in the meantime
   }
+  if (alreadySubmitted()){ render(); return; } // already entered on this device
   if (!Number.isFinite(minutes) || $("minutes").value.trim() === ""){
     msg.textContent = "Please enter a number of minutes."; return;
   }
@@ -117,7 +129,7 @@ $("submitBtn").addEventListener("click", async () => {
       day: session.day,
       createdAt: serverTimestamp()
     });
-    hasSubmitted = true;
+    markSubmitted();
     msg.textContent = "";
     $("submitBtn").disabled = false;
     startLiveCount();
@@ -138,11 +150,6 @@ function startLiveCount(){
   });
 }
 
-$("againBtn").addEventListener("click", () => {
-  $("minutes").value = "";
-  hasSubmitted = false;
-  render();
-});
 </script>
 </body>
 </html>
